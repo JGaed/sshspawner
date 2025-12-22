@@ -165,6 +165,8 @@ class SSHSpawner(Spawner):
 
         remote_cmd = ' '.join(cmd)
 
+        self.log.debug(f"CMD: {remote_cmd}")
+
         self.pid = await self.exec_notebook(remote_cmd)
 
         self.log.debug("Starting User: {}, PID: {}".format(self.user.name, self.pid))
