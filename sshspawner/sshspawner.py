@@ -265,6 +265,7 @@ class SSHSpawner(Spawner):
             getattr(self.user, 'escaped_name', self.user.name),
             'activity',
         )
+        base_url = self.server.base_url
         proto = 'https' if self.internal_ssl else 'http'
         bind_url = f"{proto}://{fmt_ip_url(self.remote_ip)}:{self.remote_port}{base_url}"
         env["JUPYTERHUB_SERVICE_URL"] = bind_url
