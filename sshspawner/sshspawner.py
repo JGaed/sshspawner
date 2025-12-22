@@ -256,7 +256,14 @@ class SSHSpawner(Spawner):
         """TBD"""
 
         env = super(SSHSpawner, self).get_env()
-        env['JUPYTERHUB_API_URL'] = self.hub_api_url
+        hub_api = self.hub_api_url
+        env['JUPYTERHUB_API_URL'] = hub_api
+        env['JUPYTERHUB_ACTIVITY_URL'] = url_path_join(
+            hub_api,
+            'users',
+            getattr(self.user, 'escaped_name', self.user.name),
+            'activity',
+        )
         if self.path:
             env['PATH'] = self.path
         username = self.get_remote_user(self.user.name)
