@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 
 from traitlets import Bool, Unicode, Integer, List, observe, default
 from jupyterhub.spawner import Spawner
+from jupyterhub.utils import url_path_join
 
 
 class SSHSpawner(Spawner):
