@@ -1,5 +1,6 @@
 import asyncio, asyncssh
 import os
+import re
 from textwrap import dedent
 import warnings
 import random
@@ -79,6 +80,13 @@ class SSHSpawner(Spawner):
             help=dedent("""The base path where all necessary resources are
             placed. Generally left relative so that resources are placed into
             this base directory in the user's home directory."""),
+            config=True)
+
+    keep_temp_files = Bool(True,
+            help=dedent("""If True, keep temp scripts on the hub host after spawn for debugging.
+
+            When False (default), /tmp/jupyterhub_*_run.sh on the hub host
+            is removed after successful spawn."""),
             config=True)
 
     def load_state(self, state):
@@ -214,6 +222,16 @@ class SSHSpawner(Spawner):
         remote_host = random.choice(self.remote_hosts)
         return remote_host
 
+    def _sanitize_server_name(self):
+        """Turn JupyterHub server name into a safe identifier."""
+        if not self._server_name or self._server_name == "_default_":
+            return "default"
+        name = self._server_name.lower()
+        name = re.sub(r'[^a-z0-9._-]', '-', name)
+        name = re.sub(r'-{2,}', '-', name)
+        name = name.strip('-_.')
+        return name if name else "default"
+
     @observe('remote_host')
     def _log_remote_host(self, change):
         self.log.debug("Remote host was set to %s." % self.remote_host)
@@ -272,6 +290,7 @@ class SSHSpawner(Spawner):
         if self.path:
             env['PATH'] = self.path
         username = self.get_remote_user(self.user.name)
+        server_name = self._sanitize_server_name()
         kf = self.ssh_keyfile.format(username=username)
         cf = kf + "-cert.pub"
         k = asyncssh.read_private_key(kf)
@@ -289,7 +308,7 @@ class SSHSpawner(Spawner):
         bash_script_str += '%s < /dev/null >> .jupyter.log 2>&1 & pid=$!\n' % command
         bash_script_str += 'echo $pid\n'
 
-        run_script = "/tmp/{}_run.sh".format(self.user.name)
+        run_script = f"/tmp/jupyterhub_{username}_{server_name}_run.sh"
         with open(run_script, "w") as f:
             f.write(bash_script_str)
         if not os.path.isfile(run_script):
@@ -305,6 +324,11 @@ class SSHSpawner(Spawner):
             retcode = result.exit_status
 
         self.log.debug("exec_notebook status={}".format(retcode))
+        if not self.keep_temp_files:
+            try:
+                os.remove(run_script)
+            except OSError:
+                pass
         if stdout != b'':
             pid = int(stdout)
         else:
